@@ -32,7 +32,9 @@ install the necessary dependencies:
 Install assignment dependencies:
 
 ```bash
+
 $ yarn install
+
 ```
 
 ## Making the test suite pass
@@ -40,7 +42,9 @@ $ yarn install
 Execute the tests with:
 
 ```bash
+
 $ yarn test
+
 ```
 
 In many test suites all but the first test have been skipped.
