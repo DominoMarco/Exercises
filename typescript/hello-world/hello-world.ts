@@ -1,102 +1,75 @@
-type EqualFn<T> = (lhs: T, rhs: T) => boolean;
-type GetterFn<T> = () => T;
-type SetterFn<T> = (value: T) => T;
-type UnsubscribeFn = () => void;
-type UpdateFn<T> = (value?: T) => T;
 
-type InputPair<T> = [GetterFn<T>, SetterFn<T>];
+type Player = 'O' | 'X';
 
-type Options = {
-  name: string; // for debugging
-};
+const directions = [
+  [-1, 0],  
+  [-1, 1], 
+  [0, -1], 
+  [0, 1],  
+  [1, -1],   
+  [1, 0],    
+];
 
-type ObserverR = {
-  name?: string;
-};
+export class Board {
+  board: string[][];
+  height: number;
+  width: number;
 
-type ObserverV<T> = {
-  value?: T;
-  updateFn: UpdateFn<T>;
-};
+  constructor(rows: string[]) {
+    this.board = rows.map(row =>
+      row.trimStart().split(' ').filter(cell => cell.length > 0)
+    );
+    this.height = this.board.length;
+    this.width = this.board[0]?.length ?? 0;
+  }
 
-type Observer<T> = ObserverR & ObserverV<T>;
+  public winner(): string {
+    if (this.hasPath('O')) return 'O';
+    if (this.hasPath('X')) return 'X';
+    return '';
+  }
 
-type SubjectR = {
-  name?: string;
-  observer: ObserverR | undefined;
-};
+  private hasPath(player: Player): boolean {
+    const visited = Array.from({ length: this.height }, () =>
+      Array(this.width).fill(false)
+    );
 
-type SubjectV<T> = {
-  value: T;
-  equalFn?: EqualFn<T>;
-};
+    const stack: [number, number][] = [];
 
-type Subject<T> = SubjectR & SubjectV<T>;
-
-// module Context value
-let activeObserver: ObserverR | undefined = undefined;
-
-function updateObserver<T>(observer: Observer<T>): void {
-  const prevObserver = activeObserver;
-  activeObserver = observer;
-  observer.value = observer.updateFn(observer.value);
-  activeObserver = prevObserver;
-}
-
-function createInput<T>(
-  value: T,
-  _equal?: boolean | EqualFn<T>,
-  options?: Options
-): InputPair<T> {
-  const s: Subject<T> = {
-    name: options?.name,
-    observer: undefined,
-    value,
-    equalFn: undefined,
-  };
-
-  const read: GetterFn<T> = () => {
-    if (activeObserver) s.observer = activeObserver;
-    return s.value;
-  };
-
-  const write: SetterFn<T> = (nextValue) => {
-    s.value = nextValue;
-    if (s.observer) updateObserver(s.observer as Observer<unknown>);
-
-    return s.value;
-  };
-
-  return [read, write];
-}
-function createComputed<T>(
-  updateFn: UpdateFn<T>,
-  value?: T,
-  _equal?: boolean | EqualFn<T>,
-  options?: { name?: string }
-): GetterFn<T> {
-  const o: Observer<T> = {
-    name: options?.name,
-    value,
-    updateFn,
-  };
-  updateObserver(o);
-
-  return (): T => {
-    if (o.value === undefined) {
-      throw new Error("Computed value is undefined");
+    if (player === 'O') {
+      for (let x = 0; x < this.width; x++) {
+        if (this.board[0][x] === 'O') stack.push([0, x]);
+      }
+    } else {
+      for (let y = 0; y < this.height; y++) {
+        if (this.board[y][0] === 'X') stack.push([y, 0]);
+      }
     }
-    return o.value;
-  };
-}
 
-function createCallback<T>(_updateFn: UpdateFn<T>, _value?: T): UnsubscribeFn {
-  const observer = {};
-  return ((observer: unknown | undefined) => (): void => {
-    if (!observer) return;
-    observer = undefined;
-    // i.e. dispose of any active subscriptions
-  })(observer);
-}
+    while (stack.length > 0) {
+      const [y, x] = stack.pop()!;
+      if (visited[y][x]) continue;
+      visited[y][x] = true;
 
-export { createInput, createComputed, createCallback };
+      if (player === 'O' && y === this.height - 1) return true;
+      if (player === 'X' && x === this.width - 1) return true;
+
+      for (const [dy, dx] of directions) {
+        const ny = y + dy;
+        const nx = x + dx;
+        if (
+          ny >= 0 &&
+          ny < this.height &&
+          nx >= 0 &&
+          nx < this.width &&
+          !visited[ny][nx] &&
+          this.board[ny][nx] === player
+        ) {
+          stack.push([ny, nx]);
+        }
+      }
+    }
+
+    return false;
+  }
+}
